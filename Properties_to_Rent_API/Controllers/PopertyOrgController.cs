@@ -23,7 +23,7 @@ namespace Properties_to_Rent_API.Controllers
 
 
         // GET: api/<PopertyOrgController>
-        //[Authorize]
+        [Authorize(Roles = "Api.ReadOnly,Api.ReadWrite")]
         [HttpGet]
         [Route("GetAll")]
         public ActionResult<List<Property>> GetAll()

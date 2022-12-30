@@ -1,8 +1,5 @@
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.AzureAD.UI;
+
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
@@ -12,6 +9,7 @@ using Properties_to_Rent_API.Services;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,16 +25,16 @@ builder.Services.AddControllers();
 
 
 //AD 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)    
-                 .AddJwtBearer(options =>
-                 {
-                     options.Audience = builder.Configuration["AzureAd:ResourceId"];
-                     options.Authority = $"{ builder.Configuration["AzureAd:Instance"]}{builder.Configuration["AzureAd:TenantId"]}";
-                 });
+//builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)    
+//                 .AddJwtBearer(options =>
+//                 {
+//                     options.Audience = builder.Configuration["AzureAd:ResourceId"];
+//                     options.Authority = $"{ builder.Configuration["AzureAd:Instance"]}{builder.Configuration["AzureAd:TenantId"]}";
+//                 });
 
-//builder.Services.AddMicrosoftIdentityWebApiAuthentication(builder.Configuration)
-//                .EnableTokenAcquisitionToCallDownstreamApi()
-//                .AddInMemoryTokenCaches();
+builder.Services.AddMicrosoftIdentityWebApiAuthentication(builder.Configuration);
+                //.EnableTokenAcquisitionToCallDownstreamApi()
+                //.AddInMemoryTokenCaches();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
