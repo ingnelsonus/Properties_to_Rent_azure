@@ -32,7 +32,7 @@ namespace Properties_to_Rent_API.Controllers
             var result = _propertiesServices.GetAll();
             return result;
         }
-
+        
         // GET api/<PopertyOrgController>/5
         [HttpGet]
         [Route("GetById")]

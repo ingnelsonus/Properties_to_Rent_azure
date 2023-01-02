@@ -50,6 +50,7 @@ public class Properties_Client {
                 (m=>m.MediaType=="application/json"))
             {
                 httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", result.AccessToken);
 
                 HttpResponseMessage response = await httpClient.GetAsync(config.BaseAddress);
 
