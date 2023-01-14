@@ -15,31 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-
-
-
-
-
-
 builder.Services.AddControllers();
-
-
-//AD 
-//builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)    
-//                 .AddJwtBearer(options =>
-//                 {
-//                     options.Audience = builder.Configuration["AzureAd:ResourceId"];
-//                     options.Authority = $"{ builder.Configuration["AzureAd:Instance"]}{builder.Configuration["AzureAd:TenantId"]}";
-//                 });
-
-builder.Services.AddMicrosoftIdentityWebApiAuthentication(builder.Configuration);
-                //.EnableTokenAcquisitionToCallDownstreamApi()
-                //.AddInMemoryTokenCaches();
-
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
 
 //Vault
 string kvURL = builder.Configuration["keyvault:KVUrl"];
@@ -50,9 +26,21 @@ string clientSecret = builder.Configuration["keyvault:ClientSecret"];
 var credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
 var kvclient = new SecretClient(new Uri(kvURL), credential);
 
-builder.Configuration.AddAzureKeyVault(kvclient,new AzureKeyVaultConfigurationOptions());
+builder.Configuration.AddAzureKeyVault(kvclient, new AzureKeyVaultConfigurationOptions());
 
 var email = kvclient.GetSecret("email").Value.Value;
+var cnx = kvclient.GetSecret("ConnectionString").Value.Value;
+var DbName = kvclient.GetSecret("DataBaseName").Value.Value;
+
+
+//AD 
+builder.Services.AddMicrosoftIdentityWebApiAuthentication(builder.Configuration)
+                .EnableTokenAcquisitionToCallDownstreamApi()
+                .AddInMemoryTokenCaches();
+
+// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 
 //Mongo DB
@@ -61,8 +49,25 @@ builder.Services.AddSingleton<IPropertiesDbSettings>(sp => sp.GetRequiredService
 //string cnx = builder.Configuration.GetValue<string>("PropertiesDBSettings:ConnectionString");
 //builder.Services.AddSingleton<IMongoClient>(s => new MongoClient(cnx));
 
-builder.Services.AddScoped<IPropertyServices, PropertyServices>();
 
+
+//Azure Redis Cache.
+builder.Services.AddDistributedRedisCache(options =>{
+    options.Configuration = builder.Configuration.GetConnectionString("cnxAzureRedisRentPropertiesCache");
+});
+
+
+//Azure Loggin
+builder.Host.ConfigureLogging(logging =>
+{
+    logging.ClearProviders();
+    logging.AddConsole();
+    logging.AddAzureWebAppDiagnostics();
+});
+
+
+builder.Services.AddScoped<IPropertyServices, PropertyServices>();
+builder.Services.AddTransient<IQueueServices,QueueServices>();
 
 
 var app = builder.Build();
