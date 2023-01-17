@@ -54,7 +54,7 @@ namespace Properties_to_Rent_API.Controllers
                 {
                     lsProperties = _propertiesServices.GetAll();
                     DistributedCacheEntryOptions cacheOptions = new DistributedCacheEntryOptions();
-                    cacheOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, 30));
+                    cacheOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, 120));
                     _cache.SetString("propertyList", JsonConvert.SerializeObject(lsProperties), cacheOptions);
                     _logger.LogInformation("Property.GetAll from db");
                 }
@@ -77,23 +77,31 @@ namespace Properties_to_Rent_API.Controllers
         [Route("GetById")]
         public ActionResult<Property> GetById(string id)
         {
-            Property property = new Property();
-            var cachePropertyById = _cache.GetString("propertyById"+id);
-
-            if (!string.IsNullOrEmpty(cachePropertyById))
+            try
             {
-                //cache..
-                property = JsonConvert.DeserializeObject<Property>(cachePropertyById);
-            }
-            else
-            {
-                property = _propertiesServices.GetByID(id);
-                DistributedCacheEntryOptions cacheOptions = new DistributedCacheEntryOptions();
-                cacheOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, 30));
-                _cache.SetString("propertyById"+id, JsonConvert.SerializeObject(property), cacheOptions);
-            }
+                Property property = new Property();
+                var cachePropertyById = _cache.GetString("propertyById" + id);
 
-            return property;
+                if (!string.IsNullOrEmpty(cachePropertyById))
+                {
+                    //cache..
+                    property = JsonConvert.DeserializeObject<Property>(cachePropertyById);
+                }
+                else
+                {
+                    property = _propertiesServices.GetByID(id);
+                    DistributedCacheEntryOptions cacheOptions = new DistributedCacheEntryOptions();
+                    cacheOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, 120));
+                    _cache.SetString("propertyById" + id, JsonConvert.SerializeObject(property), cacheOptions);
+                }
+
+                return property;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, ex.Message);
+                return BadRequest("Property wit id "+id+" not foudn");                
+            }
         }
 
         // GET api/<PopertyOrgController>/5
@@ -103,22 +111,31 @@ namespace Properties_to_Rent_API.Controllers
         public ActionResult<List<Property>> GetPropertiesByCity(string city)
         {
             List<Property> lsPropertiesByCity = new List<Property>();
-            var cacheLsPropertiesByCity = _cache.GetString("propertyListByCity"+city);
 
-            if (!string.IsNullOrEmpty(cacheLsPropertiesByCity))
-            {
-                //cache..
-                lsPropertiesByCity = JsonConvert.DeserializeObject<List<Property>>(cacheLsPropertiesByCity);
-            }
-            else
-            {
-                lsPropertiesByCity = _propertiesServices.GetPropertiesByCity(city);
-                DistributedCacheEntryOptions cacheOptions = new DistributedCacheEntryOptions();
-                cacheOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, 30));
-                _cache.SetString("propertyListByCity"+ city, JsonConvert.SerializeObject(lsPropertiesByCity), cacheOptions);
-            }
+            try
+            {                
+                var cacheLsPropertiesByCity = _cache.GetString("propertyListByCity" + city);
 
-            return lsPropertiesByCity;            
+                if (!string.IsNullOrEmpty(cacheLsPropertiesByCity))
+                {
+                    //cache..
+                    lsPropertiesByCity = JsonConvert.DeserializeObject<List<Property>>(cacheLsPropertiesByCity);
+                }
+                else
+                {
+                    lsPropertiesByCity = _propertiesServices.GetPropertiesByCity(city);
+                    DistributedCacheEntryOptions cacheOptions = new DistributedCacheEntryOptions();
+                    cacheOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, 120));
+                    _cache.SetString("propertyListByCity" + city, JsonConvert.SerializeObject(lsPropertiesByCity), cacheOptions);
+                }
+
+                return lsPropertiesByCity;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, ex.Message);
+                return lsPropertiesByCity;
+            }      
         }
 
         // POST api/<PopertyOrgController>
@@ -127,8 +144,25 @@ namespace Properties_to_Rent_API.Controllers
         [Route("Create")]
         public ActionResult<Property> Create([FromBody] Property property)
         {
-            _propertiesServices.Create(property);
-            return CreatedAtAction(nameof(GetById), new { id = property.Id }, property);
+            try
+            {
+                var newProperty = _propertiesServices.Create(property);
+
+                if (newProperty != null)
+                {
+                    //Cache.
+                    DistributedCacheEntryOptions cacheOptions = new DistributedCacheEntryOptions();
+                    cacheOptions.SetAbsoluteExpiration(new TimeSpan(0, 0, 120));
+                    _cache.SetString("propertyById" + newProperty.Id, JsonConvert.SerializeObject(property), cacheOptions);
+                }
+
+                return CreatedAtAction(nameof(GetById), new { id = property.Id }, property);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, ex.Message+" PropertiesController.Create");
+                return BadRequest("Error created the new property");
+            }
         }
 
         // PUT api/<PopertyOrgController>/5
@@ -137,15 +171,23 @@ namespace Properties_to_Rent_API.Controllers
         [Route("Update")]
         public ActionResult Update(string id, [FromBody] Property value)
         {
-            var checkifExistingProperty = _propertiesServices.GetByID(id);
-
-            if (checkifExistingProperty == null)
+            try
             {
-                return NotFound($"Property with Id = {id} not foud");
-            }
+                var checkifExistingProperty = _propertiesServices.GetByID(id);
 
-            _propertiesServices.Update(id, value);
-            return NoContent();
+                if (checkifExistingProperty == null)
+                {
+                    return NotFound($"Property with Id = {id} not foud");
+                }
+
+                _propertiesServices.Update(id, value);
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, ex.Message + " PropertiesController.Update");
+                return BadRequest("Error Updated the property with Id:"+id);
+            }
         }
 
         // DELETE api/<PopertyOrgController>/5
@@ -154,15 +196,23 @@ namespace Properties_to_Rent_API.Controllers
         [Route("Delete")]
         public ActionResult Delete(string id)
         {
-            var checkifExistingProperty = _propertiesServices.GetByID(id);
-
-            if (checkifExistingProperty == null)
+            try
             {
-                return NotFound($"Property with Id = {id} not foud");
-            }
+                var checkifExistingProperty = _propertiesServices.GetByID(id);
 
-            _propertiesServices.Remove(id);
-            return Ok($"Student with Id= {id} deleted");
+                if (checkifExistingProperty == null)
+                {
+                    return NotFound($"Property with Id = {id} not foud");
+                }
+
+                _propertiesServices.Remove(id);
+                return Ok($"Student with Id= {id} deleted");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, ex.Message + " PropertiesController.Delete");
+                return BadRequest("Error deleted the property with Id:" + id);
+            }
 
         }
     }
